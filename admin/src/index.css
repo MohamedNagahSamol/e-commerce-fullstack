@@ -1,0 +1,18 @@
+@import "tailwindcss";
+.inpdddut[type="file"] {
+  padding: 10px;
+  margin-bottom: 15px;
+  border: none;
+  background-color: #0a3d62cd ;
+  border-radius: 5px;
+  width: 70%;
+  margin-left: 1%;
+  color: white;
+  cursor: pointer;
+}
+@media (max-width: 510px) {
+  .inpdddut[type="file"] {
+    width: 100%;
+    margin-left: 0;
+  }
+}
