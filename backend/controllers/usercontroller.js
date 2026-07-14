@@ -188,7 +188,7 @@ const forgotPassword = async (req, res) => {
     // user.resetTokenExpire = Date.now() + 3600000;
     await user.save();
     // console.log(`resetToken:${resetToken}`)
-    const frontendURL = process.env.FRONTEND_URL || "http://localhost:5173";
+    const frontendURL = process.env.FRONTEND_URL || "https://e-commerce-fullstack-nm2o.vercel.app";
     const resetLink = `${frontendURL}/reset-password?token=${resetToken}`;
     
     await resend.emails.send({

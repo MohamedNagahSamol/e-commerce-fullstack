@@ -1,7 +1,7 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://e-commerce-production-024c.up.railway.app",
+  baseURL: import.meta.env.VITE_API_URL || "https://e-commerce-production-4f51.up.railway.app",
   withCredentials: true,
 });
 
