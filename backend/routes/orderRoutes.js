@@ -7,7 +7,7 @@
 
 import express from "express";
 import { placeOrder, verifyOrder, updateStatus, listOrders, userOrders } from "../controllers/ordercontroller.js";
-import { requredAuth, adminAuth } from "../middleware/authMiddleware.js";
+import { requredAuth, adminAuth, optionalAuth } from "../middleware/authMiddleware.js";
 import { orderLimiter, adminLimiter } from "../config/ratelimte.js";
 import {
   placeOrderValidator,
@@ -19,7 +19,7 @@ const orderRouter = express.Router();
 
 // User order routes - حماية من spam الطلبات مع validation
 orderRouter.post("/place", orderLimiter, requredAuth, placeOrderValidator, placeOrder);
-orderRouter.post("/verify", orderLimiter, requredAuth, verifyOrderValidator, verifyOrder);
+orderRouter.post("/verify", orderLimiter, optionalAuth, verifyOrderValidator, verifyOrder);
 orderRouter.post("/userorders", requredAuth, userOrders);
 
 // Admin routes - حد أعلى للإدمن مع validation

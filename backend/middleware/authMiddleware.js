@@ -40,4 +40,22 @@ const adminAuth = async (req, res, next) => {
   }
 };
 
-export { requredAuth, adminAuth };
+const optionalAuth = async (req, res, next) => {
+  const token = req.cookies?.accessToken || req.cookies?.adminToken || req.headers.authorization?.split(" ")[1];
+  if (!token) {
+    return next();
+  }
+  try {
+    const decoded = await jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const user = await usermodule.findById(decoded.id);
+    if (user) {
+      req.user = user;
+    }
+    next();
+  } catch {
+    next();
+  }
+};
+
+export { requredAuth, adminAuth, optionalAuth };
+

@@ -123,19 +123,25 @@ const verifyOrder = async (req, res) => {
         if (isExistPayment.payment) return res.status(200).json({ success: true, message: "already verified" });
         await ordermodule.findByIdAndUpdate(orderId, { payment: true });
 
+        const targetUserId = req.user?._id || isExistPayment.userId;
+
         // مسح السلة من Cart Collection
-        await cartModule.findOneAndUpdate(
-          { userId: req.user._id },
-          { items: [] }
-        );
+        if (targetUserId) {
+          await cartModule.findOneAndUpdate(
+            { userId: targetUserId },
+            { items: [] }
+          );
+        }
 
-        const user = await usermodule.findById(req.user._id);
+        const user = targetUserId ? await usermodule.findById(targetUserId) : null;
 
-        await Notification.create({
-          userId: req.user._id,
-          message: "تمت عمليه الدفع بنجاح جاري التحقق من الطلبيه و ارسالها في خلال اسبوع",
-          username: req.user.name,
-        });
+        if (targetUserId) {
+          await Notification.create({
+            userId: targetUserId,
+            message: "تمت عمليه الدفع بنجاح جاري التحقق من الطلبيه و ارسالها في خلال اسبوع",
+            username: user?.name || isExistPayment.name || "عميل",
+          });
+        }
 
         if (user?.email) {
           try {

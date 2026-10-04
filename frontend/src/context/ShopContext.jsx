@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState, useCallback, useMemo } from "react";
 const ShopContext = createContext();
 import axiosInstance from "../axios/axiosInstance";
 import { useNavigate } from "react-router-dom";
@@ -57,7 +57,7 @@ const ShopContextProvider = ({ children }) => {
     }
   }, [cartItem]);
 
-  const addToCart = async (id, quantity = 1) => {
+  const addToCart = useCallback(async (id, quantity = 1) => {
     const qty = Math.max(1, Number(quantity) || 1);
     setcartItem((prev) => ({
       ...prev,
@@ -70,9 +70,9 @@ const ShopContextProvider = ({ children }) => {
         console.log(err);
       }
     }
-  };
+  }, [accessToken]);
 
-  const removeFromCart = async (id, removeAll = false) => {
+  const removeFromCart = useCallback(async (id, removeAll = false) => {
     setcartItem((prev) => {
       const updated = { ...prev };
       if (removeAll || updated[id] <= 1) {
@@ -89,9 +89,9 @@ const ShopContextProvider = ({ children }) => {
         console.log(err);
       }
     }
-  };
+  }, [accessToken]);
 
-  const clearCart = async () => {
+  const clearCart = useCallback(async () => {
     try {
       if (accessToken) {
         await axiosInstance.post(`/api/cart/clear`);
@@ -100,16 +100,17 @@ const ShopContextProvider = ({ children }) => {
     } catch (err) {
       console.log(err);
     }
-  };
+  }, [accessToken]);
 
-  const getTotalCartAmount = () => {
+  const getTotalCartAmount = useCallback(() => {
     if (!allProducts || !cartItem) return 0;
     return Object.entries(cartItem).reduce((total, [id, qty]) => {
       const product = allProducts.find((p) => p._id === id);
       return total + (product ? product.price * qty : 0);
     }, 0);
-  };
-  const value = {
+  }, [allProducts, cartItem]);
+
+  const value = useMemo(() => ({
     all_products: allProducts,
     cartItem,
     addToCart,
@@ -118,7 +119,9 @@ const ShopContextProvider = ({ children }) => {
     removeFromCart,
     getTotalCartAmount,
     setAccessToken,
-  };
+    accessToken,
+  }), [allProducts, cartItem, addToCart, clearCart, removeFromCart, getTotalCartAmount, accessToken]);
+
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
 };
 
