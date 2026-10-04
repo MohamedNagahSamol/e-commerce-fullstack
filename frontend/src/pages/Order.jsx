@@ -57,6 +57,7 @@ const Order = () => {
       items: orderItem,
       amount: total,
       address: shipping,
+      origin: window.location.origin,
     };
 
     try {

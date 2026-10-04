@@ -191,8 +191,19 @@ const forgotPassword = async (req, res) => {
     user.resetToken = resetToken;
     // user.resetTokenExpire = Date.now() + 3600000;
     await user.save();
-    // console.log(`resetToken:${resetToken}`)
-    const frontendURL = process.env.FRONTEND_URL || "https://e-commerce-fullstack-nm2o.vercel.app";
+    let clientOrigin = req.headers.origin;
+    if (!clientOrigin && req.headers.referer) {
+      try {
+        clientOrigin = new URL(req.headers.referer).origin;
+      } catch {
+        // ignore
+      }
+    }
+    const frontendURL = (
+      clientOrigin && clientOrigin !== "null"
+        ? clientOrigin
+        : process.env.FRONTEND_URL || "https://e-commerce-fullstack-nm2o.vercel.app"
+    ).replace(/\/$/, "");
     const resetLink = `${frontendURL}/reset-password?token=${resetToken}`;
     
     await resend.emails.send({

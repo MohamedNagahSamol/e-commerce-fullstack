@@ -18,7 +18,19 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const placeOrder = async (req, res) => {
-  const frontend_url = process.env.FRONTEND_URL || "http://localhost:5173";
+  let clientOrigin = req.body?.origin || req.headers.origin;
+  if (!clientOrigin && req.headers.referer) {
+    try {
+      clientOrigin = new URL(req.headers.referer).origin;
+    } catch {
+      // ignore
+    }
+  }
+  const frontend_url = (
+    clientOrigin && clientOrigin !== "null"
+      ? clientOrigin
+      : process.env.FRONTEND_URL || "https://e-commerce-fullstack-nm2o.vercel.app"
+  ).replace(/\/$/, "");
   try {
     // ✅ التحقق من المدخلات
     const errors = validationResult(req);
