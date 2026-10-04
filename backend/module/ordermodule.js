@@ -9,7 +9,7 @@ const orderSchema = new mongoose.Schema(
     address: { type: {}, required: true },
     status: {
       type: String,
-      enum: ["PENDING", "ON THE WAY", "DELIVERED","CANCELED"],
+      enum: ["PENDING", "ON THE WAY", "DELIVERED", "CANCELED", "CANCELLED", "PROCESSING", "SHIPPED"],
       default: "PENDING",
     },
     payment: { type: Boolean, default: false },

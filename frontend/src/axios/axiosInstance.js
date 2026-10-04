@@ -17,11 +17,21 @@ axiosInstance.interceptors.response.use(
   (response) => response,
 
   async (error) => {
-    if (error.response?.status === 401) {
+    const originalRequest = error.config;
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes("/api/user/refresh")
+    ) {
+      originalRequest._retry = true;
       try {
         const res = await axiosInstance.post("/api/user/refresh");
-        Cookies.set("accessToken", res.data.token, { path: "/", secure: true, sameSite: "lax" });
-        return axiosInstance(error.config);
+        if (res.data?.success && res.data?.token) {
+          Cookies.set("accessToken", res.data.token, { path: "/", secure: true, sameSite: "lax" });
+          originalRequest.headers.Authorization = `Bearer ${res.data.token}`;
+          return axiosInstance(originalRequest);
+        }
       } catch {
         Cookies.remove("accessToken");
         if (window.location.pathname !== "/login" && window.location.pathname !== "/signup") {

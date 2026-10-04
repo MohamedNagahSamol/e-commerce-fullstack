@@ -18,7 +18,11 @@ axiosInstance.interceptors.response.use(
 
   async (error) => {
     if (error.response?.status === 401) {
-     console.log("err")
+      Cookies.remove("adminToken", { path: "/" });
+      Cookies.remove("adminToken");
+      if (typeof window !== "undefined" && window.location.pathname !== "/admin/login") {
+        window.location.href = "/admin/login";
+      }
     }
     return Promise.reject(error);
   },

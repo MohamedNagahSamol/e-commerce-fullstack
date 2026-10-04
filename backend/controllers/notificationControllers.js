@@ -28,7 +28,7 @@ const markAsRead = async (req, res) => {
     if (!notification) {
       return res.status(404).json({ success: false, message: "notification not found" });
     }
-    if (notification.userId !== req.user._id.toString()) {
+    if (req.user.role !== "admin" && notification.userId !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: "unauthorized access to this notification" });
     }
     notification.isRead = true;
@@ -42,7 +42,8 @@ const markAsRead = async (req, res) => {
 
 const markAllAsRead = async (req, res) => {
   try {
-    await Notification.updateMany({ userId: req.user._id }, { isRead: true });
+    const filter = req.user.role === "admin" ? {} : { userId: req.user._id };
+    await Notification.updateMany(filter, { isRead: true });
     res.status(200).json({ success: true, message: "all notifications marked as read" });
   } catch (err) {
     console.log(err);
@@ -56,7 +57,7 @@ const deleteNotification = async (req, res) => {
     if (!notification) {
       return res.status(404).json({ success: false, message: "notification not found" });
     }
-    if (notification.userId !== req.user._id.toString()) {
+    if (req.user.role !== "admin" && notification.userId !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: "unauthorized access to this notification" });
     }
     await Notification.findByIdAndDelete(req.params.id);
@@ -69,7 +70,8 @@ const deleteNotification = async (req, res) => {
 
 const clearAllNotification = async (req, res) => {
   try {
-    await Notification.deleteMany({ userId: req.user._id });
+    const filter = req.user.role === "admin" ? {} : { userId: req.user._id };
+    await Notification.deleteMany(filter);
     res.status(200).json({ success: true, message: "all notifications deleted" });
   } catch (err) {
     console.log(err);
@@ -79,8 +81,8 @@ const clearAllNotification = async (req, res) => {
 
 const deleteAllRead = async (req, res) => {
   try {
-    const readNotifications = await Notification.find({ userId: req.user._id, isRead: true });
-    await Promise.all(readNotifications.map((n) => Notification.findByIdAndDelete(n._id)));
+    const filter = req.user.role === "admin" ? { isRead: true } : { userId: req.user._id, isRead: true };
+    await Notification.deleteMany(filter);
     res.status(200).json({ success: true, message: "all read notifications deleted" });
   } catch (err) {
     console.log(err);

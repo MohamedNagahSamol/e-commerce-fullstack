@@ -107,15 +107,11 @@ const verifyOrder = async (req, res) => {
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       if (session.payment_status === "paid") {
         const isExistPayment = await ordermodule.findById(orderId);
+        if (!isExistPayment) return res.status(404).json({ success: false, message: "Order not found" });
         if (isExistPayment.payment) return res.status(200).json({ success: true, message: "already verified" });
         await ordermodule.findByIdAndUpdate(orderId, { payment: true });
 
-        // ====================================
-        // 🛒 تحديث: مسح السلة من Cart Collection الجديد
-        // الكود القديم: await usermodule.findByIdAndUpdate(req.user._id, { cartData: {} });
-        // الكود الجديد: await cartModule.findOneAndUpdate({userId: req.user._id}, {items: []});
-        // السبب: نقل السلة إلى Collection منفصل
-        // ====================================
+        // مسح السلة من Cart Collection
         await cartModule.findOneAndUpdate(
           { userId: req.user._id },
           { items: [] }
@@ -125,15 +121,22 @@ const verifyOrder = async (req, res) => {
 
         await Notification.create({
           userId: req.user._id,
-          message: "تمت عمليه الدفع بنجاح جاري التحقق منى الطلبيه و ارسالها في خلال اسبوع",
+          message: "تمت عمليه الدفع بنجاح جاري التحقق من الطلبيه و ارسالها في خلال اسبوع",
           username: req.user.name,
         });
-        await resend.emails.send({
-          from: "onboarding@resend.dev",
-          to: user.email,
-          subject: "تمت عمليه الدفع بنجاح",
-          html: `<h1>مرحبا بك يا ${user.name}</h1><p>تمت عمليه الدفع بنجاح جاري التحقق منى الطلبيه و ارسالها في خلال اسبوع</p>`,
-        });
+
+        if (user?.email) {
+          try {
+            await resend.emails.send({
+              from: "onboarding@resend.dev",
+              to: user.email,
+              subject: "تمت عمليه الدفع بنجاح",
+              html: `<h1>مرحبا بك يا ${user.name}</h1><p>تمت عمليه الدفع بنجاح جاري التحقق من الطلبيه و ارسالها في خلال اسبوع</p>`,
+            });
+          } catch (emailErr) {
+            console.warn("Failed to send payment confirmation email:", emailErr.message);
+          }
+        }
         res.status(200).json({ success: true, message: "payment success" });
       } else {
         res.status(400).json({ success: false, message: "payment verification failed on stripe" });
@@ -178,20 +181,33 @@ const updateStatus = async (req, res) => {
       });
     }
 
-    const order = await ordermodule.findByIdAndUpdate(req.body.orderId, { status: req.body.newStatus });
-    const user = await usermodule.findById(order.userId);
+    const order = await ordermodule.findByIdAndUpdate(req.body.orderId, { status: req.body.newStatus }, { new: true });
+    if (!order) {
+      return res.status(404).json({ success: false, message: "الطلب غير موجود" });
+    }
 
-    await Notification.create({
-      userId: user._id,
-      message: "تم تحديث حاله الاوردر تاكد من طلبك من خانه الطلبات",
-      username: user.name,
-    });
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: user.email,
-      subject: "تمت تحديث الطلب",
-      html: `<h1>مرحبا بك يا ${user.name}</h1><p>تم تحديث حاله الطلب ادخل علي الموقع و علي خانه الطلبات لاكتشاف كل جديد</p>`,
-    });
+    const user = await usermodule.findById(order.userId);
+    if (user) {
+      await Notification.create({
+        userId: user._id,
+        message: `تم تحديث حالة طلبك إلى: ${req.body.newStatus}`,
+        username: user.name,
+      });
+
+      if (user.email) {
+        try {
+          await resend.emails.send({
+            from: "onboarding@resend.dev",
+            to: user.email,
+            subject: "تم تحديث حالة طلبك",
+            html: `<h1>مرحبا بك يا ${user.name}</h1><p>تم تحديث حالة طلبك إلى: ${req.body.newStatus}. يمكنك متابعة طلبك من قسم الطلبات.</p>`,
+          });
+        } catch (emailErr) {
+          console.warn("Failed to send status update email:", emailErr.message);
+        }
+      }
+    }
+
     res.status(200).json({ success: true, message: "status updated" });
   } catch (err) {
     console.log(err);

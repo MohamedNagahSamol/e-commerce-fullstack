@@ -1,34 +1,28 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import Button from "@mui/material/Button";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import axiosInstance from "../axios/axiosInstance";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock, KeyRound, CheckCircle2 } from "lucide-react";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const token = searchParams.get("token") || "";
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [token, setToken] = useState("");
   const [formData, setFormData] = useState({
     newPassword: "",
     confirmPassword: "",
   });
 
   useEffect(() => {
-    const check = () => {
-      const tokenFromUrl = searchParams.get("token");
-      if (!tokenFromUrl) {
-        setError("رابط غير صالح. يرجى استخدام الرابط الموجود في البريد الإلكتروني.");
-        const timer = setTimeout(() => navigate("/login"), 3000);
-        return () => clearTimeout(timer); // ✅ تجنب memory leak
-      } else {
-        setToken(tokenFromUrl);
-      }
-    };
-    check();
+    if (!searchParams.get("token")) {
+      const timer = setTimeout(() => navigate("/login"), 3000);
+      return () => clearTimeout(timer);
+    }
   }, [searchParams, navigate]);
+
+  const activeError = error || (!token ? "رابط غير صالح. يرجى استخدام الرابط الموجود في البريد الإلكتروني." : "");
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -40,21 +34,18 @@ const ResetPassword = () => {
     setError("");
     setSuccess("");
 
-    // التحقق من الحقول
     if (!formData.newPassword || !formData.confirmPassword) {
       setError("يرجى ملء جميع الحقول");
       return;
     }
 
-    // التحقق من تطابق كلمات المرور
     if (formData.newPassword !== formData.confirmPassword) {
       setError("كلمة المرور وتأكيد كلمة المرور غير متطابقين");
       return;
     }
 
-    // التحقق من طول كلمة المرور
-    if (formData.newPassword.length < 6) {
-      setError("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
+    if (formData.newPassword.length < 8) {
+      setError("كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف كبير ورقم ورمز");
       return;
     }
 
@@ -66,22 +57,28 @@ const ResetPassword = () => {
         newPassword: formData.newPassword,
       });
 
-      if (res.data.success) {
+      if (res.data?.success) {
         setSuccess("تم تغيير كلمة المرور بنجاح! جاري تحويلك لصفحة تسجيل الدخول...");
         setTimeout(() => {
           navigate("/login");
         }, 2000);
       } else {
-        setError(res.data.message || "حدث خطأ أثناء إعادة تعيين كلمة المرور");
+        const rawMsg = res.data?.message;
+        setError(Array.isArray(rawMsg) ? rawMsg[0]?.msg : rawMsg || "حدث خطأ أثناء إعادة تعيين كلمة المرور");
       }
     } catch (err) {
-      const message = err.response?.data?.message;
-      if (message?.includes("expired") || message?.includes("time url expired")) {
+      const rawMsg = err.response?.data?.message;
+      const message = Array.isArray(rawMsg)
+        ? rawMsg[0]?.msg
+        : typeof rawMsg === "string"
+          ? rawMsg
+          : "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.";
+      if (typeof message === "string" && (message.includes("expired") || message.includes("time url expired"))) {
         setError("انتهت صلاحية الرابط. يرجى طلب رابط جديد.");
-      } else if (message?.includes("not found")) {
+      } else if (typeof message === "string" && message.includes("not found")) {
         setError("الرابط غير صالح أو تم استخدامه من قبل.");
       } else {
-        setError(message || "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.");
+        setError(message);
       }
     } finally {
       setLoading(false);
@@ -89,71 +86,92 @@ const ResetPassword = () => {
   };
 
   return (
-    <section className="relative w-full min-h-screen bg-linear-to-r from-teal-900 via-teal-800 to-amber-900 text-white py-24 px-6 sm:px-10 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm p-10 pointer-events-none"></div>
+    <section className="relative w-full min-h-screen bg-slate-950 text-white py-24 px-4 sm:px-6 flex items-center justify-center">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-md bg-white/10 backdrop-blur-md p-10 rounded-3xl shadow-2xl">
-        <h2 className="text-3xl sm:text-4xl font-extrabold mb-6 text-center">إعادة تعيين كلمة المرور</h2>
+      <div className="relative z-10 w-full max-w-md bg-slate-900/70 border border-slate-800/90 backdrop-blur-2xl p-8 sm:p-10 rounded-3xl shadow-2xl text-right">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-amber-500/25">
+          <KeyRound className="w-7 h-7 text-slate-950" />
+        </div>
 
-        <p className="text-center text-gray-300 mb-6">أدخل كلمة المرور الجديدة الخاصة بك</p>
+        <h1 className="text-2xl sm:text-3xl font-black text-center text-white mb-2">
+          إعادة تعيين كلمة المرور
+        </h1>
+        <p className="text-center text-slate-400 text-xs sm:text-sm mb-8">
+          أدخل كلمة المرور الجديدة الخاصة بحسابك لحمايته.
+        </p>
 
-        <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-          <input
-            type="password"
-            name="newPassword"
-            placeholder="كلمة المرور الجديدة"
-            value={formData.newPassword}
-            onChange={handleChange}
+        {activeError && (
+          <div className="bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold p-3.5 rounded-xl mb-6 text-center">
+            ⚠️ {activeError}
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold p-3.5 rounded-xl mb-6 text-center flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{success}</span>
+          </div>
+        )}
+
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">كلمة المرور الجديدة</label>
+            <div className="relative">
+              <input
+                type="password"
+                name="newPassword"
+                placeholder="••••••••"
+                value={formData.newPassword}
+                onChange={handleChange}
+                disabled={loading || !token}
+                required
+                className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pr-10 pl-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm transition-all"
+              />
+              <Lock className="w-4 h-4 text-slate-500 absolute top-3.5 right-3.5" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">تأكيد كلمة المرور الجديدة</label>
+            <div className="relative">
+              <input
+                type="password"
+                name="confirmPassword"
+                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                disabled={loading || !token}
+                required
+                className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pr-10 pl-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm transition-all"
+              />
+              <Lock className="w-4 h-4 text-slate-500 absolute top-3.5 right-3.5" />
+            </div>
+          </div>
+
+          <button
+            type="submit"
             disabled={loading || !token}
-            required
-            className="bg-white/30 p-3 rounded-xl text-black placeholder-gray-700 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          />
-
-          <input
-            type="password"
-            name="confirmPassword"
-            placeholder="تأكيد كلمة المرور الجديدة"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            disabled={loading || !token}
-            required
-            className="bg-white/30 p-3 rounded-xl text-black placeholder-gray-700 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          />
-
-          <Button variant="contained" type="submit" disabled={loading || !token} className="w-full rounded-4xl">
+            className="w-full mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-amber-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer text-sm disabled:opacity-50"
+          >
             {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="animate-spin w-5 h-5" />
-                جاري التحديث...
-              </span>
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>جاري التحديث...</span>
+              </>
             ) : (
-              "تغيير كلمة المرور"
+              <span>تحديث كلمة المرور</span>
             )}
-          </Button>
+          </button>
         </form>
 
-        <p className="mt-6 text-center text-gray-300">
+        <p className="mt-8 text-center text-xs text-slate-400">
           تذكرت كلمة المرور؟{" "}
-          <span
-            onClick={() => navigate("/login")}
-            className="text-amber-400 font-semibold cursor-pointer hover:underline"
-          >
+          <Link to="/login" className="text-amber-400 font-bold hover:underline">
             تسجيل الدخول
-          </span>
+          </Link>
         </p>
       </div>
-
-      {error && (
-        <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-red-500 text-white p-4 rounded-xl shadow-lg max-w-md text-center z-50">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-green-500 text-white p-4 rounded-xl shadow-lg max-w-md text-center z-50">
-          {success}
-        </div>
-      )}
     </section>
   );
 };

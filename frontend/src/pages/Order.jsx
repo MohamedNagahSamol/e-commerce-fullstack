@@ -3,14 +3,17 @@ import { ShopContext } from "../context/ShopContext";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../axios/axiosInstance";
 import Cookies from "js-cookie";
+import { ShoppingBag, CreditCard, ShieldCheck, MapPin, Phone, User, Home, Loader2 } from "lucide-react";
+
 const Order = () => {
   const { cartItem, all_products, getTotalCartAmount } = useContext(ShopContext);
   const navigate = useNavigate();
-  const total = getTotalCartAmount();
+  const total = getTotalCartAmount() || 0;
 
-  const cartProducts = Object.keys(cartItem)
+  const cartProducts = Object.keys(cartItem || {})
+    .filter((id) => (cartItem[id] || 0) > 0)
     .map((id) => {
-      const product = all_products.find((p) => p._id === id);
+      const product = (all_products || []).find((p) => p._id === id);
       return product ? { ...product, quantity: cartItem[id] } : null;
     })
     .filter(Boolean);
@@ -22,6 +25,7 @@ const Order = () => {
     phone: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (e) => {
     setShipping({ ...shipping, [e.target.name]: e.target.value });
@@ -29,21 +33,26 @@ const Order = () => {
 
   const placeOrder = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
+
     if (!shipping.name || !shipping.address || !shipping.city || !shipping.phone) {
-      alert("⚠️ يرجى ملء جميع بيانات الشحن");
+      setErrorMessage("يرجى ملء جميع بيانات الشحن المطلوبة");
       return;
     }
+
     if (submitting) return;
     setSubmitting(true);
 
     let orderItem = [];
-    all_products.map((product) => {
-      if (cartItem[product._id] > 0) {
-        let iteminfo = product;
-        iteminfo["quantity"] = cartItem[product._id];
-        orderItem.push(iteminfo);
+    (all_products || []).forEach((product) => {
+      if ((cartItem[product._id] || 0) > 0) {
+        orderItem.push({
+          ...product,
+          quantity: cartItem[product._id],
+        });
       }
     });
+
     const orderData = {
       items: orderItem,
       amount: total,
@@ -51,115 +60,203 @@ const Order = () => {
     };
 
     try {
-      let res = await axiosInstance.post("/api/order/place", orderData);
-      if (res.data.success) {
+      const res = await axiosInstance.post("/api/order/place", orderData);
+      if (res.data.success && res.data.session) {
         window.location.replace(res.data.session);
-      } else if (!res.data.success) {
-        window.location.replace(res.data.session);
-        alert(res.data.message || res.data.error);
+      } else {
+        setErrorMessage(res.data.message || res.data.error || "حدث خطأ أثناء الانتقال لبوابة الدفع");
+        setSubmitting(false);
       }
     } catch (err) {
       console.log(err);
-      alert("حدث خطأ أثناء تقديم الطلب");
-    } finally {
+      setErrorMessage(err.response?.data?.message || "حدث خطأ أثناء معالجة الطلب، يرجى المحاولة لاحقاً");
       setSubmitting(false);
     }
   };
+
   useEffect(() => {
     if (!Cookies.get("accessToken")) {
       navigate("/login");
     } else if (getTotalCartAmount() === 0) {
-      navigate("/cart");
+      navigate("/cartshop");
     }
   }, [navigate, getTotalCartAmount]);
+
   return (
-    <section className="relative w-full min-h-screen bg-linear-to-r from-teal-900 via-teal-800 to-amber-900 text-white py-24 px-6 sm:px-10">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm pointer-events-none"></div>
+    <section className="relative w-full min-h-screen bg-slate-950 text-white pt-24 pb-20 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center max-w-xl mx-auto mb-12 space-y-2">
+          <span className="text-amber-400 font-bold text-xs uppercase tracking-widest bg-amber-400/10 px-3.5 py-1.5 rounded-full border border-amber-400/20">
+            خطوة الدفع النهائية
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-black text-white">إتمام الطلب والشحن</h1>
+          <p className="text-slate-400 text-sm">
+            أدخل عنوان التوصيل وبياناتك للانتقال إلى بوابة الدفع الآمنة (Stripe).
+          </p>
+        </div>
 
-      <div className="relative z-10 max-w-5xl mx-auto">
-        <h2 className="text-4xl sm:text-5xl font-extrabold mb-12 text-center">إتمام الطلب</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-10 items-start">
+          {/* Shipping Form */}
+          <div className="lg:col-span-7 bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-xl backdrop-blur-md text-right">
+            <h2 className="text-xl font-bold text-white mb-6 flex items-center justify-end gap-2.5">
+              <span>عنوان التوصيل وبيانات المستلم</span>
+              <MapPin className="w-5 h-5 text-amber-400" />
+            </h2>
 
-        {cartProducts.length === 0 ? (
-          <div className="text-center text-gray-300 mt-20 space-y-6">
-            <p className="text-xl">🛒 السلة فارغة الآن</p>
-            <button
-              onClick={() => navigate("/")}
-              className="bg-linear-to-r from-amber-500 to-yellow-500 px-8 py-3 rounded-2xl font-semibold text-white hover:opacity-90 transition-all"
-            >
-              العودة للتسوق
-            </button>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-10">
-            <div className="space-y-6">
-              {cartProducts.map((item) => (
-                <div
-                  key={item._id}
-                  className="flex items-center gap-4 bg-white/10 p-4 rounded-2xl shadow-lg border border-white/20"
-                >
-                  <img src={item.image} className="w-20 h-20 object-contain rounded-xl" alt={item.name} />
-                  <div>
-                    <h3 className="text-lg font-semibold">{item.name}</h3>
-                    <p className="text-sm text-gray-300">الكمية: {item.quantity}</p>
-                    <p className="text-amber-400 font-bold">${item.price.toFixed(2)}</p>
-                  </div>
-                </div>
-              ))}
-
-              <div className="text-xl font-bold mt-6">
-                المجموع الكلي:
-                <span className="text-amber-400 ml-2">${total.toFixed(2)}</span>
+            {errorMessage && (
+              <div className="bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold p-3.5 rounded-xl mb-6 text-center">
+                ⚠️ {errorMessage}
               </div>
-            </div>
-            <div className="bg-white/10 p-8 rounded-3xl backdrop-blur-md border border-white/20 shadow-xl">
-              <h3 className="text-2xl font-semibold mb-6 text-center">بيانات الشحن</h3>
+            )}
 
-              <div className="space-y-4">
-                <form onSubmit={placeOrder}>
+            <form onSubmit={placeOrder} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">الاسم بالكامل</label>
+                <div className="relative">
                   <input
                     type="text"
                     name="name"
-                    placeholder="الاسم"
+                    placeholder="مثال: أحمد محمود"
                     value={shipping.name}
                     onChange={handleChange}
-                    className="w-full bg-white/15 mb-3 text-white placeholder-gray-300 px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-amber-400"
+                    required
+                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pr-10 pl-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm transition-all"
                   />
+                  <User className="w-4 h-4 text-slate-500 absolute top-3.5 right-3.5" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">المدينة / المحافظة</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="city"
+                      placeholder="القاهرة / المنوفية"
+                      value={shipping.city}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pr-10 pl-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm transition-all"
+                    />
+                    <Home className="w-4 h-4 text-slate-500 absolute top-3.5 right-3.5" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">رقم الهاتف المحمول</label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      name="phone"
+                      placeholder="01012345678"
+                      value={shipping.phone}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pr-10 pl-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm transition-all"
+                      dir="ltr"
+                    />
+                    <Phone className="w-4 h-4 text-slate-500 absolute top-3.5 right-3.5" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">العنوان التفصيلي (الشارع / العمارة / الشقة)</label>
+                <div className="relative">
                   <input
                     type="text"
                     name="address"
-                    placeholder="العنوان"
+                    placeholder="شارع التحرير، عمارة 15، شقة 4"
                     value={shipping.address}
                     onChange={handleChange}
-                    className="w-full bg-white/15 mb-3 text-white placeholder-gray-300 px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-amber-400"
+                    required
+                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pr-10 pl-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm transition-all"
                   />
-                  <input
-                    type="text"
-                    name="city"
-                    placeholder="المدينه"
-                    value={shipping.city}
-                    onChange={handleChange}
-                    className="w-full bg-white/15 mb-3 text-white placeholder-gray-300 px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-amber-400"
-                  />
-                  <input
-                    type="tel"
-                    name="phone"
-                    placeholder="رقم الهاتف"
-                    value={shipping.phone}
-                    onChange={handleChange}
-                    className="w-full bg-white/15 mb-3 text-white placeholder-gray-300 px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-amber-400"
-                  />
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="block bg-linear-to-r from-teal-600 via-amber-600 to-amber-800 w-full rounded bg-primary px-6 pb-2 pt-2.5 text-xs hover:opacity-80 font-medium uppercase leading-normal text-white shadow-lg hover:shadow-amber-400/30 transition cursor-pointer duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]"
-                  >
-                    {submitting ? "جاري تقديم الطلب..." : "اتمام الطلب"}
-                  </button>
-                </form>
+                  <MapPin className="w-4 h-4 text-slate-500 absolute top-3.5 right-3.5" />
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black py-4 px-6 rounded-2xl shadow-xl shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer text-base disabled:opacity-60"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>جاري معالجة الطلب والانتقال للدفع...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-5 h-5" />
+                      <span>تأكيد الطلب والدفع الآمن عبر Stripe (${total.toFixed(2)})</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 pt-2 text-xs text-slate-400">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>جميع المدفوعات مشفرة ومؤمنة بواسطة معايير PCI-DSS</span>
+              </div>
+            </form>
+          </div>
+
+          {/* Order Review List */}
+          <div className="lg:col-span-5 bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl backdrop-blur-md text-right">
+            <h2 className="text-xl font-bold text-white pb-4 border-b border-slate-800/80 flex items-center justify-end gap-2">
+              <span>محتويات طلبك ({cartProducts.length})</span>
+              <ShoppingBag className="w-5 h-5 text-amber-400" />
+            </h2>
+
+            <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+              {cartProducts.map((item) => (
+                <div
+                  key={item._id}
+                  className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex items-center justify-between gap-3"
+                >
+                  <div className="text-right">
+                    <span className="text-sm font-bold text-amber-400 font-mono">
+                      ${((Number(item.price) || 0) * item.quantity).toFixed(2)}
+                    </span>
+                    <span className="text-xs text-slate-400 block font-normal">
+                      ${Number(item.price).toFixed(2)} × {item.quantity}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <h4 className="text-sm font-bold text-white line-clamp-1">{item.name}</h4>
+                      <span className="text-[11px] text-slate-400">{item.category}</span>
+                    </div>
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-12 h-12 object-contain bg-slate-900 rounded-lg p-1 border border-slate-800"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-4 border-t border-slate-800/80 space-y-2 text-sm">
+              <div className="flex justify-between items-center text-slate-300">
+                <span className="font-mono">${total.toFixed(2)}</span>
+                <span>المجموع الفرعي:</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-300">
+                <span className="text-emerald-400 font-semibold">مجاني</span>
+                <span>الشحن السريع:</span>
+              </div>
+              <div className="pt-3 border-t border-slate-800/60 flex justify-between items-center text-lg font-bold">
+                <span className="text-amber-400 font-mono text-xl">${total.toFixed(2)}</span>
+                <span>المبلغ الإجمالي للدفع:</span>
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </section>
   );

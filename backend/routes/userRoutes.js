@@ -22,7 +22,7 @@ const userrouter = express.Router();
 userrouter.post("/register", authLimiter, Check, register);
 userrouter.post("/login", authLimiter, Check, loginUser);
 userrouter.post("/forgot-password", authLimiter, forgotPassword);
-userrouter.post("/reset-password", authLimiter, body("newPassword").matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,})/), resetPassword);
+userrouter.post("/reset-password", authLimiter, body("newPassword").matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9])(?=.{8,})/), resetPassword);
 
 // Routes عادية
 userrouter.use(generalLimiter);
@@ -30,7 +30,7 @@ userrouter.use(generalLimiter);
 userrouter.post("/logout", logOut);
 userrouter.post("/refresh", refresh);
 userrouter.get("/profile", requredAuth, getUserProfile);
-userrouter.post("/update-profile", Check, requredAuth, updateProfileValidator, updateUserProfile);
-userrouter.post("/change-password", body("newPassword").matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,})/), requredAuth, changePassword);
+userrouter.post("/update-profile", requredAuth, updateProfileValidator, updateUserProfile);
+userrouter.post("/change-password", body("newPassword").matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9])(?=.{8,})/), requredAuth, changePassword);
 
 export default userrouter;

@@ -1,146 +1,255 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, ShoppingBag, Mail, ShoppingCart, Package, Bell, User } from "lucide-react";
+import { Home, ShoppingBag, Mail, ShoppingCart, Package, Bell, User, LogOut, LogIn, Sparkles } from "lucide-react";
 import { useContext } from "react";
 import { Link as ScrollLink } from "react-scroll";
 import { ShopContext } from "../context/ShopContext";
-export const MenuItemData = [
-  { to: "home", label: "Home", Icon: Home },
-  { to: "shop", label: "Shop", Icon: ShoppingBag },
-  { to: "contact", label: "Contact", Icon: Mail },
-];
 import Cookies from "js-cookie";
 import axiosInstance from "../axios/axiosInstance";
+
+export const MenuItemData = [
+  { to: "home", label: "الرئيسية", Icon: Home },
+  { to: "categories", label: "التصنيفات", Icon: ShoppingBag },
+  { to: "features", label: "المميزات", Icon: Sparkles },
+  { to: "contact", label: "تواصل معنا", Icon: Mail },
+];
+
 function MenuItem({ setSidebaropen, isMobile }) {
   const navigate = useNavigate();
   const location = useLocation();
   const accessToken = Cookies.get("accessToken");
-  const { cartItem } = useContext(ShopContext);
-  const totalitem = Object.values(cartItem).reduce((a, b) => a + b, 0);
-  const handelLogout = async () => {
+  const { cartItem, setAccessToken } = useContext(ShopContext);
+
+  const totalItemCount = Object.values(cartItem || {}).reduce(
+    (acc, qty) => acc + (Number(qty) || 0),
+    0
+  );
+
+  const handleLogout = async () => {
     try {
-      const res = await axiosInstance.post(`/api/user/logout`);
-      if (res.data.success) {
-        Cookies.remove("accessToken");
-        navigate("/signup");
-      } else {
-        console.log(res.error || res.message);
-      }
+      await axiosInstance.post(`/api/user/logout`);
     } catch (err) {
       console.log(err);
+    } finally {
+      Cookies.remove("accessToken");
+      setAccessToken(null);
+      if (setSidebaropen) setSidebaropen(false);
+      navigate("/login");
     }
   };
-  return (
-    <div
-      className={`flex md:justify-center lg:justify-end ${
-        isMobile ? "flex-col space-y-4 items-center px-4 gap-y-1" : "flex-row w-full items-center gap-2"
-      }`}
-    >
-      {MenuItemData.map((i) =>
-        location.pathname === "/" ? (
-          <ScrollLink
-            key={i.to}
-            to={i.to}
-            smooth={true}
-            duration={500}
-            offset={-80}
-            spy={true}
-            className="flex items-cente gap-1 px-1
-           py-2 rounded-lg h-8.75 transition-all shrink w-auto min-w-13 text-gray-200 hover:bg-white/10 hover:text-white
-           hover:shadow-md cursor-pointer"
-            onClick={() => setSidebaropen && setSidebaropen(false)}
-            activeClass="bg-gradient-to-r
-            from-teal-600 to-amber-500 text-white shadow-lg"
-          >
-            <i.Icon className="w-6 h-6" />
-            <span className="font-semibold text-base">{i.label}</span>
-          </ScrollLink>
-        ) : (
+
+  const handleNavClick = (sectionId) => {
+    if (setSidebaropen) setSidebaropen(false);
+    if (location.pathname === "/") {
+      const el = document.getElementById(sectionId);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    } else {
+      navigate("/");
+      setTimeout(() => {
+        const el = document.getElementById(sectionId);
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  };
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col space-y-2">
+        {/* Navigation Links */}
+        <div className="space-y-1 pb-4 border-b border-slate-800/80">
+          <p className="text-xs font-semibold text-slate-400 px-3 pb-2 uppercase tracking-wider">
+            التنقل السريع
+          </p>
+          {MenuItemData.map((item) => (
+            <button
+              key={item.to}
+              onClick={() => handleNavClick(item.to)}
+              className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-slate-200 hover:text-white hover:bg-slate-900 transition-all text-sm font-semibold cursor-pointer"
+            >
+              <item.Icon className="w-5 h-5 text-amber-400" />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* User Actions */}
+        <div className="space-y-1 pt-2">
+          <p className="text-xs font-semibold text-slate-400 px-3 pb-2 uppercase tracking-wider">
+            حسابك وطلباتك
+          </p>
+
           <button
-            key={i.to}
             onClick={() => {
-              navigate("/");
-              setSidebaropen && setSidebaropen(false);
+              navigate("/cartshop");
+              if (setSidebaropen) setSidebaropen(false);
             }}
-            className="flex items-center gap-1 px-1 py-5 rounded-lg h-8.75 transition-all shrink w-auto  text-gray-200
-             hover:bg-white/10 hover:shadow-md"
+            className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-slate-200 hover:text-white hover:bg-slate-900 transition-all text-sm font-semibold cursor-pointer"
           >
-            <i.Icon className="w-4 h-6" />
-            <span className="font-semibold">{i.label}</span>
+            <div className="flex items-center gap-3">
+              <ShoppingCart className="w-5 h-5 text-emerald-400" />
+              <span>سلة المشتريات</span>
+            </div>
+            {totalItemCount > 0 && (
+              <span className="bg-amber-500 text-slate-950 font-black text-xs px-2 py-0.5 rounded-full shadow-sm">
+                {totalItemCount}
+              </span>
+            )}
           </button>
-        ),
-      )}
-      <button
-        onClick={() => {
-          navigate("/myorder");
-        }}
-        className="flex items-center gap-1 px-1 py-3 rounded-lg h-8.75 transition-all shrink w-auto min-w-15 text-gray-200 hover:bg-white/10 hover:shadow-md"
-      >
-        <Package className="w-5 h-6" />
-        <span className="font-semibold text-base">Order</span>
-      </button>
-      <button
-        onClick={() => {
-          navigate("/cartshop");
-          setSidebaropen && setSidebaropen(false);
-        }}
-        className="relative flex items-center gap-1 px-1 py-3 
-      rounded-lg h-8.75 transition-all shrink w-auto min-w-7 text-gray-200 hover:bg-white/10 hover:shadow-md"
-      >
-        <ShoppingCart className="w-7 h-7" />
-        {totalitem > 0 && Cookies.get("accessToken") && (
-          <span
-            className="absolute -top-1 -right-1 w-5 h-5 text-xs font-bold text-w bg-red-500 rounded-full flex 
-      items-center justify-center"
+
+          <button
+            onClick={() => {
+              navigate("/myorder");
+              if (setSidebaropen) setSidebaropen(false);
+            }}
+            className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-slate-200 hover:text-white hover:bg-slate-900 transition-all text-sm font-semibold cursor-pointer"
           >
-            {totalitem}
+            <Package className="w-5 h-5 text-blue-400" />
+            <span>طلباتي</span>
+          </button>
+
+          <button
+            onClick={() => {
+              navigate("/notification");
+              if (setSidebaropen) setSidebaropen(false);
+            }}
+            className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-slate-200 hover:text-white hover:bg-slate-900 transition-all text-sm font-semibold cursor-pointer"
+          >
+            <Bell className="w-5 h-5 text-purple-400" />
+            <span>الإشعارات</span>
+          </button>
+
+          {accessToken ? (
+            <>
+              <button
+                onClick={() => {
+                  navigate("/profile");
+                  if (setSidebaropen) setSidebaropen(false);
+                }}
+                className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-slate-200 hover:text-white hover:bg-slate-900 transition-all text-sm font-semibold cursor-pointer"
+              >
+                <User className="w-5 h-5 text-cyan-400" />
+                <span>الملف الشخصي</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white transition-all text-sm font-bold cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>تسجيل الخروج</span>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => {
+                navigate("/login");
+                if (setSidebaropen) setSidebaropen(false);
+              }}
+              className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold hover:shadow-lg hover:shadow-amber-500/20 transition-all text-sm cursor-pointer"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>تسجيل الدخول</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop Menu
+  return (
+    <div className="flex items-center gap-1.5 lg:gap-3">
+      {/* Scroll / Nav Links */}
+      <nav className="flex items-center gap-1 bg-slate-900/60 border border-slate-800/80 p-1.5 rounded-2xl backdrop-blur-md">
+        {MenuItemData.map((item) =>
+          location.pathname === "/" ? (
+            <ScrollLink
+              key={item.to}
+              to={item.to}
+              smooth={true}
+              duration={500}
+              offset={-80}
+              spy={true}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs lg:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+              activeClass="text-amber-400 bg-amber-400/10 font-bold shadow-sm"
+            >
+              <item.Icon className="w-4 h-4" />
+              <span>{item.label}</span>
+            </ScrollLink>
+          ) : (
+            <button
+              key={item.to}
+              onClick={() => handleNavClick(item.to)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs lg:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+            >
+              <item.Icon className="w-4 h-4" />
+              <span>{item.label}</span>
+            </button>
+          )
+        )}
+      </nav>
+
+      <div className="h-6 w-px bg-slate-800 mx-1 hidden sm:block" />
+
+      {/* Orders link */}
+      <button
+        onClick={() => navigate("/myorder")}
+        title="طلباتي"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs lg:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/70 border border-transparent hover:border-slate-700/60 transition-all cursor-pointer"
+      >
+        <Package className="w-4 h-4 text-slate-400" />
+        <span className="hidden xl:inline">طلباتي</span>
+      </button>
+
+      {/* Notifications */}
+      <button
+        onClick={() => navigate("/notification")}
+        title="الإشعارات"
+        className="p-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/70 border border-transparent hover:border-slate-700/60 transition-all relative cursor-pointer"
+      >
+        <Bell className="w-4.5 h-4.5" />
+      </button>
+
+      {/* Cart Button */}
+      <button
+        onClick={() => navigate("/cartshop")}
+        title="سلة التسوق"
+        className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-amber-400/40 text-slate-200 hover:text-white transition-all relative cursor-pointer group"
+      >
+        <ShoppingCart className="w-4.5 h-4.5 text-amber-400 group-hover:scale-110 transition-transform" />
+        <span className="text-xs lg:text-sm font-bold hidden sm:inline">السلة</span>
+        {totalItemCount > 0 && (
+          <span className="bg-amber-400 text-slate-950 font-black text-[11px] px-1.5 py-0.2 rounded-full min-w-5 h-5 flex items-center justify-center shadow-md animate-pulse">
+            {totalItemCount}
           </span>
         )}
       </button>
-      <button
-        onClick={() => {
-          navigate("/notification");
-          setSidebaropen && setSidebaropen(false);
-        }}
-        className="relative flex items-center gap-1 px-2 py-3 
-      rounded-lg h-8.75 transition-all shrink w-auto min-w-3.5 text-gray-200 hover:bg-white/10 hover:shadow-md"
-      >
-        <Bell className="w-7 h-7" />
-      </button>
 
-      {accessToken && (
-        <button
-          onClick={() => {
-            navigate("/profile");
-            setSidebaropen && setSidebaropen(false);
-          }}
-          className="flex items-center gap-2 px-2 py-2 rounded-lg h-8.75 transition-all shrink w-auto min-w-3.5 text-gray-200 hover:bg-white/10 hover:shadow-md"
-        >
-          <User className="w-7 h-7" />
-        </button>
-      )}
-
-      {!accessToken ? (
-        <button
-          onClick={() => {
-            navigate("/login");
-            setSidebaropen && setSidebaropen(false);
-          }}
-          className="flex items-center gap-2 
-        px-4 py-3 rounded-lg h-8.75 bg-amber-400 text-white font-semibold hover:bg-amber-500 transition-all"
-        >
-          Login
-        </button>
-      ) : (
-        <div className="flex items-center gap-4">
+      {/* User Auth Buttons */}
+      {accessToken ? (
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={handelLogout}
-            className="flex items-center gap-2 px-4 py-3 rounded-lg h-8.75 bg-red-500 text-white 
-          font-semibold hover:bg-red-600 transition-all"
+            onClick={() => navigate("/profile")}
+            title="الملف الشخصي"
+            className="p-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/70 border border-transparent hover:border-slate-700/60 transition-all cursor-pointer"
           >
-            Logout
+            <User className="w-4.5 h-4.5 text-cyan-400" />
+          </button>
+          <button
+            onClick={handleLogout}
+            title="تسجيل الخروج"
+            className="p-2.5 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
+      ) : (
+        <button
+          onClick={() => navigate("/login")}
+          className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 px-4 py-2 rounded-xl text-xs lg:text-sm font-bold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+        >
+          <LogIn className="w-4 h-4" />
+          <span>دخول</span>
+        </button>
       )}
     </div>
   );

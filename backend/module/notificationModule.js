@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const notifactionSchema = new mongoose.Schema(
   {
-    userId: { type: String, required: true, ref: "order" },
+    userId: { type: String, required: true, ref: "user" },
     message: { type: String, required: true },
     isRead: { type: Boolean, default: false },
     username: { type: String, required: true },

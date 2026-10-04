@@ -1,18 +1,35 @@
 @import "tailwindcss";
-.inpdddut[type="file"] {
-  padding: 10px;
-  margin-bottom: 15px;
-  border: none;
-  background-color: #0a3d62cd ;
-  border-radius: 5px;
-  width: 70%;
-  margin-left: 1%;
-  color: white;
-  cursor: pointer;
-}
-@media (max-width: 510px) {
-  .inpdddut[type="file"] {
-    width: 100%;
-    margin-left: 0;
+
+@layer base {
+  * {
+    font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #0b0f19;
+    color: #f8fafc;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0f172a;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
   }
 }

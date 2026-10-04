@@ -26,6 +26,7 @@ function App() {
             <Route path="/verify" element={<Verify />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/cartshop" element={<Cart />} />
+            <Route path="/cart" element={<Cart />} />
             <Route path="/myorder" element={<MyOrder />} />
             <Route path="/login" element={<Login />} />
             <Route path="/profile" element={<Profile />} />

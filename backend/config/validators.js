@@ -14,6 +14,11 @@ const addToCartValidator = [
     .withMessage("معرف المنتج غير صحيح")
     .trim()
     .escape(),
+  body("quantity")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("الكمية يجب أن تكون رقم أكبر من 0")
+    .toInt(),
 ];
 
 const removeFromCartValidator = [
@@ -155,8 +160,8 @@ const updateStatusValidator = [
   body("newStatus")
     .notEmpty()
     .withMessage("الحالة الجديدة مطلوبة")
-    .isIn(["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"])
-    .withMessage("الحالة يجب أن تكون: PENDING, PROCESSING, SHIPPED, DELIVERED, أو CANCELLED")
+    .isIn(["PENDING", "ON THE WAY", "DELIVERED", "CANCELED", "PROCESSING", "SHIPPED", "CANCELLED"])
+    .withMessage("الحالة يجب أن تكون: PENDING, ON THE WAY, DELIVERED, أو CANCELED")
     .trim()
     .escape(),
 ];

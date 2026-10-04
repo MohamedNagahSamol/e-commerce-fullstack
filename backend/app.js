@@ -11,15 +11,26 @@ import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import helmet from "helmet";
 
+import cookieParser from "cookie-parser";
+import cloud from "cloudinary";
+
 const app = express();
 connectDB();
-import cookieParser from "cookie-parser";
-app.use(cookieParser());
-import cloud from "cloudinary";
+
 const cloudinary = cloud.v2;
+
+cloudinary.config({
+  cloud_name: process.env.cloud_Name,
+  api_key: process.env.API_key,
+  api_secret: process.env.API_secret,
+});
 
 app.use(helmet());
 app.use(cors(corsOption));
+app.use(cookieParser());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 const sanitize = (obj) => {
   if (!obj || typeof obj !== "object") return obj;
   return Object.keys(obj).reduce((acc, key) => {
@@ -35,14 +46,6 @@ app.use((req, res, next) => {
   next();
 });
 
-cloudinary.config({
-  cloud_name: process.env.cloud_Name,
-  api_key: process.env.API_key,
-  api_secret: process.env.API_secret,
-});
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
 app.use("/api/admin", adminRoutes);
 app.use("/api/order", orderRouter);
 app.use("/api/user", userrouter);
@@ -55,6 +58,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Internal Server Error", success: false });
 });
 
-app.listen(process.env.PORT, () => {
-  console.log(process.env.PORT);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

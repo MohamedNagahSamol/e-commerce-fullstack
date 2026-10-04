@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import Cookies from "js-cookie";
 import axiosInstance from "../axios/axiosInstance";
 
@@ -14,12 +14,9 @@ const Verify = () => {
   const { clearCart } = useContext(ShopContext);
   const navigate = useNavigate();
   const [status, setStatus] = useState("loading");
-  
-  // ✅ useRef لمنع multiple calls
   const hasVerified = useRef(false);
 
   useEffect(() => {
-    // ✅ التحقق من أن الـ verification لم يتم بعد
     if (hasVerified.current) return;
     if (!Cookies.get("accessToken")) return;
 
@@ -28,7 +25,6 @@ const Verify = () => {
 
     const verifyPayment = async () => {
       try {
-        // ✅ وضع علامة أن verification بدأ
         hasVerified.current = true;
 
         const res = await axiosInstance.post(
@@ -40,48 +36,50 @@ const Verify = () => {
         if (res.data.success) {
           await clearCart();
           setStatus("success");
-          setTimeout(() => navigate("/myorder"), 2000);
+          setTimeout(() => navigate("/myorder"), 2500);
         } else {
           setStatus("error");
-          setTimeout(() => navigate("/"), 2000);
+          setTimeout(() => navigate("/"), 2500);
         }
       } catch (err) {
-        // ✅ في حالة الخطأ، إعادة تعيين لإمكانية retry
         if (err.name !== "CanceledError") {
           console.log(err);
           setStatus("error");
-          setTimeout(() => navigate("/"), 2000);
+          setTimeout(() => navigate("/"), 2500);
         }
       }
     };
 
     verifyPayment();
-
     return () => controller.abort();
-  }, [success, orderId, sessionId, navigate]); // ✅ إزالة clearCart من dependencies
+  }, [success, orderId, sessionId, navigate, clearCart]);
 
   return (
-    <section className="min-h-screen flex items-center justify-center bg-linear-to-r from-teal-900 via-teal-800 to-amber-900 text-white px-6">
-      <div className="text-center flex flex-col items-center">
+    <section className="min-h-screen flex items-center justify-center bg-slate-950 text-white px-4">
+      <div className="w-full max-w-md bg-slate-900/60 border border-slate-800/80 rounded-3xl p-8 sm:p-12 text-center shadow-2xl backdrop-blur-md">
         {status === "loading" && (
-          <div className="flex flex-col items-center animate-pulse">
-            <Loader2 className="w-20 h-20 animate-spin text-amber-400 mb-6" />
-            <h2 className="text-2xl font-semibold">جاري التحقق من عمليه الدفع ...</h2>
-            <p className="mt-2 text-gray-300">يرجي الانتظار قليلا</p>
+          <div className="flex flex-col items-center space-y-4">
+            <Loader2 className="w-16 h-16 animate-spin text-amber-400" />
+            <h2 className="text-2xl font-bold text-white">جاري التحقق من عملية الدفع...</h2>
+            <p className="text-slate-400 text-sm">يرجى الانتظار ثوانٍ معدودة ولا تقم بإغلاق الصفحة.</p>
           </div>
         )}
         {status === "success" && (
-          <div className="flex flex-col items-center">
-            <CheckCircle className="w-20 h-20 animate-spin text-amber-400 mb-6" />
-            <h2 className="text-2xl font-semibold">تم الدفع بنجاح</h2>
-            <p className="mt-2 text-gray-300">سيتم نقلك الي طلباتك الان ...</p>
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-bold text-white">تم الدفع بنجاح!</h2>
+            <p className="text-slate-400 text-sm">تم تأكيد طلبك وإرسال الإشعار، جاري نقلك لسجل الطلبات...</p>
           </div>
         )}
         {status === "error" && (
-          <div className="flex flex-col items-center">
-            <XCircle className="w-20 h-20 animate-spin text-amber-400 mb-6" />
-            <h2 className="text-2xl font-semibold">فشلت عمليه الدفع</h2>
-            <p className="mt-2 text-gray-300">سيتم اعادتك الي الصفحه الرئسيه حدث خطاء اثناء التحقق</p>
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center">
+              <XCircle className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-bold text-white">تعذر تأكيد عملية الدفع</h2>
+            <p className="text-slate-400 text-sm">حدث خطأ أو تم إلغاء العملية، جاري إعادتك للصفحة الرئيسية...</p>
           </div>
         )}
       </div>

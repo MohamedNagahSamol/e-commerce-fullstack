@@ -46,12 +46,16 @@ const register = async (req, res) => {
     const token = jwt.sign({ id: newuser._id }, process.env.JWT_SECRET_KEY, { expiresIn: "1d" });
     const refreshToken = jwt.sign({ id: newuser._id }, process.env.REFRESH_TOKEN, { expiresIn: "30d" });
 
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: newuser.email,
-      subject: "مرحبا بك في تطبيقنا نتمني تجربه جيده",
-      html: `<h1>مرحبا بك يا ${newuser.name}</h1><p>اهلاا بك في نظامنا</p>`,
-    });
+    try {
+      await resend.emails.send({
+        from: "onboarding@resend.dev",
+        to: newuser.email,
+        subject: "مرحبا بك في تطبيقنا نتمني تجربه جيده",
+        html: `<h1>مرحبا بك يا ${newuser.name}</h1><p>اهلاا بك في نظامنا</p>`,
+      });
+    } catch (emailErr) {
+      console.warn("Failed to send welcome email:", emailErr.message);
+    }
     res.cookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "none", secure: true, maxAge: 86400000 * 30, path: "/" });
     res.status(201).json({ token: token, message: "correct signup", success: true });
   } catch (err) {

@@ -1,30 +1,36 @@
 import { useState, useEffect } from "react";
 import axiosinstance from "../axios/axiosInstance";
-import { Loader2 } from "lucide-react";
+import { Loader2, ClipboardCheck, User, MapPin } from "lucide-react";
 import toast from "react-hot-toast";
+
+const statusColors = {
+  PENDING: "bg-amber-400/10 text-amber-400 border-amber-400/30",
+  "ON THE WAY": "bg-blue-400/10 text-blue-400 border-blue-400/30",
+  DELIVERED: "bg-emerald-400/10 text-emerald-400 border-emerald-400/30",
+  CANCELED: "bg-red-400/10 text-red-400 border-red-400/30",
+  CANCELLED: "bg-red-400/10 text-red-400 border-red-400/30",
+};
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
-  const [loadin, SetLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const controller = new AbortController();
-    const signal = controller.signal;
     const fetchOrders = async () => {
       try {
-        const res = await axiosinstance.get(`/api/order/list`, { signal });
-
+        const res = await axiosinstance.get(`/api/order/list`, { signal: controller.signal });
         if (res.data.success) {
-          setOrders(res.data.data);
-          SetLoading(false);
-          toast.success("Orders fetched successfully");
-        } else if (!res.data.success) {
-          toast.error(res.data.message || res.data.error);
-          SetLoading(false);
+          setOrders(res.data.data || []);
+        } else {
+          toast.error(res.data.message || "فشل جلب الطلبات");
         }
       } catch (err) {
-        console.log(err);
-        toast.error(err.message || "Failed to fetch orders");
-        SetLoading(false);
+        if (err.name !== "CanceledError") {
+          toast.error(err.message || "حدث خطأ أثناء تحميل الطلبات");
+        }
+      } finally {
+        setLoading(false);
       }
     };
     fetchOrders();
@@ -39,101 +45,140 @@ const Orders = () => {
       });
 
       if (res.data.success) {
-        setOrders((prev) => prev.map((order) => (order._id === orderId ? { ...order, status: newStatus } : order)));
-        toast.success(res.data.message || "Status updated successfully");
-      } else if (!res.data.success) {
-        toast.error(res.data.message || res.data.error);
+        setOrders((prev) =>
+          prev.map((order) => (order._id === orderId ? { ...order, status: newStatus } : order))
+        );
+        toast.success("تم تحديث حالة الطلب بنجاح");
+      } else {
+        toast.error(res.data.message || "فشل تحديث الحالة");
       }
     } catch (err) {
-      console.log(err);
-      toast.error(err.message || "Failed to update status");
+      toast.error(err.response?.data?.message || err.message || "حدث خطأ في التحديث");
     }
   };
-  if (loadin) {
-    return (
-      <section
-        className="min-h-screen flex items-center justify-center bg-linear-to-r from-teal-900
-         via-teal-800 to-amber-900 text-white px-6"
-      >
-        <div className="flex flex-col items-center">
-          <Loader2 className="w-20 h-20 animate-spin text-cyan-400 mb-6" />
-          <h2 className="text-2xl font-semibold">تحميل الاوردرات...</h2>
-        </div>
-      </section>
-    );
-  }
+
   return (
-    <section className="relative w-full  min-h-screen bg-linear-to-r from-teal-900 via-teal-800 to-amber-900 text-white py-24 px-6 sm:px-10">
-      {orders.length === 0 ? (
-        <p className="text-center text-gray-300 text-xl">No orders yet 😢</p>
-      ) : (
-        <>
-          <div className="grid gap-6  sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <section className="min-h-screen bg-slate-950 text-white md:pl-64 pt-20 md:pt-10 pb-16 px-4 sm:px-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-900 text-right">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-white">إدارة طلبات العملاء</h1>
+            <p className="text-slate-400 text-xs sm:text-sm mt-1">
+              متابعة وتحديث حالات الشحن وتأكيد الدفع لطلبات المتجر ({orders.length} طلب).
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="py-20 flex flex-col items-center justify-center space-y-3">
+            <Loader2 className="w-10 h-10 animate-spin text-amber-400" />
+            <p className="text-sm text-slate-400 font-bold">جاري تحميل الطلبات...</p>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="text-center py-16 bg-slate-900/40 border border-slate-800/80 rounded-3xl p-8 max-w-md mx-auto space-y-3">
+            <ClipboardCheck className="w-12 h-12 text-slate-500 mx-auto" />
+            <h3 className="text-base font-bold text-white">لا توجد طلبات جديدة حتى الآن</h3>
+            <p className="text-xs text-slate-400">ستظهر هنا جميع الطلبات التي يقوم العملاء بتأكيدها في المتجر.</p>
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {orders.map((order) => {
-              const total = order.items?.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
+              const total = order.items?.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.quantity || 1), 0) || 0;
+              const badgeClass = statusColors[order.status] || "bg-slate-800 text-slate-300 border-slate-700";
+
               return (
                 <div
                   key={order._id}
-                  className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex flex-col justify-between shadow-lg hover:scale-105 transform transition-all w-full duration-300 mx-auto"
+                  className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-5 sm:p-6 flex flex-col justify-between shadow-xl text-right space-y-4 hover:border-slate-700 transition-all"
                 >
-                  <div className=" overflow-auto">
-                    <h2 className="text-lg font-semibold text-gray-200 mb-2">
-                      Order ID : {order._id.slice(-6).toUpperCase()}
-                    </h2>
-                    <p className="mb-1 text-amber-200">
-                      <span className="font-semibold">Customer:</span> {order.name || "No Name"}
-                    </p>
-                    <p className="mb-2 text-sm text-amber-200">
-                      <span className="font-semibold">Addrss:</span>{" "}
-                      {order.address
-                        ? `${order.address.name}, ${order.address.address}, ${order.address.city}, ${order.address.phone}`
-                        : "Not Provided"}
-                    </p>
-                    <p className="mb-3 text-sm text-amber-200">
-                      ({order.items?.length || 0})Product
-                      {order.items && order.items.length > 1 ? "s" : ""}
-                    </p>
-                    <div className="space-y-1">
-                      {order.items.map((item) => (
-                        <div key={item._id} className="flex justify-between items-center border-b border-white/20 pb-1">
-                          <div className="flex items-center justify-between gap-2">
-                            {item.image && (<img src={`${item.image}`} className="w-10 h-10 object-cover rounded" />)}
-                            <p className="text-gray-200 letter-spacing ml-1 text-sm">
-                              {item.name+" "}X{" " + item.quantity || 1}
-                            </p>
-                            {" = "}
-                            <span className="font-bold text-gray-100 text-sm">
-                              ${item.price * (item.quantity || 1)}
+                  <div className="space-y-4">
+                    {/* Top bar */}
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${badgeClass}`}>
+                        {order.status}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-amber-400">
+                        #{order._id.slice(-6).toUpperCase()}
+                      </span>
+                    </div>
+
+                    {/* Customer Info */}
+                    <div className="space-y-2 text-xs bg-slate-950/60 p-3.5 rounded-xl border border-slate-850">
+                      <div className="flex items-center justify-end gap-2 text-slate-200">
+                        <span className="font-bold">{order.name || order.address?.name || "بدون اسم"}</span>
+                        <User className="w-3.5 h-3.5 text-slate-400" />
+                      </div>
+                      <div className="flex items-center justify-end gap-2 text-slate-300">
+                        <span dir="ltr">{order.address?.phone || "غير متوفر"}</span>
+                        <span className="text-slate-500">:الهاتف</span>
+                      </div>
+                      <div className="flex items-start justify-end gap-2 text-slate-400">
+                        <span className="text-right">
+                          {order.address
+                            ? `${order.address.city || ""}, ${order.address.address || ""}`
+                            : "العنوان غير متوفر"}
+                        </span>
+                        <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                      </div>
+                      <div className="pt-2 border-t border-slate-850 flex items-center justify-between text-[11px]">
+                        <span className={`font-bold ${order.payment ? "text-emerald-400" : "text-amber-400"}`}>
+                          {order.payment ? "✓ تم الدفع إلكترونياً" : "⏳ بانتظار الدفع"}
+                        </span>
+                        <span className="text-slate-400">حالة الدفع:</span>
+                      </div>
+                    </div>
+
+                    {/* Items List */}
+                    <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                      <p className="text-[11px] font-bold text-slate-400">عناصر الطلب ({order.items?.length || 0}):</p>
+                      {order.items?.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between bg-slate-950/40 p-2 rounded-lg border border-slate-850 text-xs"
+                        >
+                          <span className="font-mono font-bold text-amber-400">
+                            ${((Number(item.price) || 0) * (item.quantity || 1)).toFixed(2)}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-200 font-medium">
+                              {item.name} × {item.quantity || 1}
                             </span>
+                            {item.image && (
+                              <img src={item.image} alt={item.name} className="w-7 h-7 object-contain bg-slate-900 rounded p-0.5" />
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                 <div className="text-sm text-cyan-200">
-                    payment{" "}:{order.payment?" paid":" no paid"}
-                 </div>
-                  <div className="mt-2 flex justify-between items-center">
-                    
+
+                  {/* Actions & Status Dropdown */}
+                  <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between gap-3">
                     <select
                       value={order.status}
                       onChange={(e) => updateStatus(order._id, e.target.value)}
-                      className="border rounded-lg px-2 py-1 text-gray-800 font-semibold cursor-pointer text-sm"
+                      className="bg-slate-950 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-amber-400 cursor-pointer"
                     >
-                      <option value="PENDING">Pending</option>
-                      <option value="ON THE WAY">On the way</option>
-                      <option value="DELIVERED">Delivered</option>
-                      <option value="CANCELED">Canceled</option>
+                      <option value="PENDING">Pending (قيد الانتظار)</option>
+                      <option value="ON THE WAY">On the way (جاري الشحن)</option>
+                      <option value="DELIVERED">Delivered (تم التوصيل)</option>
+                      <option value="CANCELED">Canceled (ملغي)</option>
                     </select>
 
-                    <span className="font-bold text-gray-100 text-sm">Total : ${total}</span>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block">الإجمالي</span>
+                      <span className="text-base font-black text-amber-400 font-mono">
+                        ${total.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
-        </>
-      )}
+        )}
+      </div>
     </section>
   );
 };

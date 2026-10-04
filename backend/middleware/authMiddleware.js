@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import usermodule from "../module/usermodule.js";
 
 const requredAuth = async (req, res, next) => {
-  const token = req.cookies.accessToken || req.headers.authorization?.split(" ")[1];
+  const token = req.cookies.accessToken || req.cookies.adminToken || req.headers.authorization?.split(" ")[1];
   if (!token) {
     return res.status(401).json({ message: "no token" });
   }

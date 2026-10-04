@@ -13,7 +13,8 @@ const addToCart = async (req, res) => {
       });
     }
 
-    const { id } = req.body;
+    const { id, quantity = 1 } = req.body;
+    const qty = Math.max(1, parseInt(quantity, 10) || 1);
 
     const product = await productmodule.findById(id);
     if (!product) {
@@ -25,15 +26,15 @@ const addToCart = async (req, res) => {
     if (!cart) {
       cart = await cartModule.create({
         userId: req.user._id,
-        items: [{ productId: id, quantity: 1 }],
+        items: [{ productId: id, quantity: qty }],
       });
     } else {
       const itemIndex = cart.items.findIndex((item) => item.productId.toString() === id);
 
       if (itemIndex > -1) {
-        cart.items[itemIndex].quantity += 1;
+        cart.items[itemIndex].quantity += qty;
       } else {
-        cart.items.push({ productId: id, quantity: 1 });
+        cart.items.push({ productId: id, quantity: qty });
       }
 
       await cart.save();
@@ -57,7 +58,7 @@ const removeFromCart = async (req, res) => {
       });
     }
 
-    const { id } = req.body;
+    const { id, removeAll } = req.body;
 
     let cart = await cartModule.findOne({ userId: req.user._id });
 
@@ -69,10 +70,13 @@ const removeFromCart = async (req, res) => {
       const itemIndex = cart.items.findIndex((item) => item.productId.toString() === id);
 
       if (itemIndex > -1) {
-        cart.items[itemIndex].quantity -= 1;
-
-        if (cart.items[itemIndex].quantity <= 0) {
+        if (removeAll) {
           cart.items.splice(itemIndex, 1);
+        } else {
+          cart.items[itemIndex].quantity -= 1;
+          if (cart.items[itemIndex].quantity <= 0) {
+            cart.items.splice(itemIndex, 1);
+          }
         }
       }
     } else {
